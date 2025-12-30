@@ -265,20 +265,17 @@ def generate_research_brief(profile_data: dict, api_key: str) -> str:
 def analyze_and_generate_message(prospect_data: dict, sender_info: dict, api_key: str, 
                                 user_instructions: str = None, previous_message: str = None) -> list:
     """
-    Generate LinkedIn messages with depth on role and sender's info in second line.
-    Returns list of 3 complete message options.
+    Generate LinkedIn messages with CONCISE role depth (20 words max) and sender's info in second line.
+    Returns list of 3 complete message options (250-300 characters).
     """
     try:
-        # 1. EXTRACT PROSPECT DATA WITH DEPTH
+        # 1. EXTRACT PROSPECT DATA CONCISELY
         prospect_name = "there"
-        prospect_headline = ""
         prospect_company = ""
         prospect_role = ""
-        prospect_industry = ""
-        prospect_expertise = ""
         
         if isinstance(prospect_data, dict):
-            # Extract name
+            # Extract name (first name only)
             if prospect_data.get('fullname'):
                 name_parts = prospect_data['fullname'].split()
                 prospect_name = name_parts[0] if name_parts else "there"
@@ -286,93 +283,74 @@ def analyze_and_generate_message(prospect_data: dict, sender_info: dict, api_key
                 name_parts = prospect_data['basic_info']['fullname'].split()
                 prospect_name = name_parts[0] if name_parts else "there"
             
-            # Extract headline for role depth
+            # Extract current position (simplified)
             if prospect_data.get('headline'):
-                prospect_headline = prospect_data['headline']
-                # Try to extract role and company from headline
-                if ' at ' in prospect_headline:
-                    parts = prospect_headline.split(' at ')
-                    prospect_role = parts[0].strip()
-                    if len(parts) > 1:
-                        prospect_company = parts[1].strip()
-                elif ' - ' in prospect_headline:
-                    parts = prospect_headline.split(' - ')
-                    prospect_role = parts[0].strip()
-                    if len(parts) > 1:
-                        prospect_company = parts[1].strip()
+                headline = prospect_data['headline']
+                # Keep it simple: just get role
+                if ' at ' in headline:
+                    prospect_role = headline.split(' at ')[0].strip()
+                elif ' - ' in headline:
+                    prospect_role = headline.split(' - ')[0].strip()
             
-            # Extract current position from experience
-            if prospect_data.get('experience'):
+            # Fallback to experience
+            if not prospect_role and prospect_data.get('experience'):
                 experiences = prospect_data.get('experience', [])
                 if experiences and len(experiences) > 0:
-                    current_exp = experiences[0]
-                    if not prospect_role:
-                        prospect_role = current_exp.get('title', '')
-                    if not prospect_company:
-                        prospect_company = current_exp.get('company', '')
-            
-            # Extract about/summary for expertise
-            if prospect_data.get('about'):
-                prospect_expertise = prospect_data['about'][:150]
+                    prospect_role = experiences[0].get('title', '')
         
-        # 2. EXTRACT RECENT POSTS (LAST 30 DAYS ONLY)
+        # 2. EXTRACT RECENT POST (CONCISE)
         recent_post_topic = ""
         if isinstance(prospect_data, dict):
             posts = prospect_data.get('posts', [])
             if posts and len(posts) > 0 and isinstance(posts[0], dict):
                 post_text = posts[0].get('text', '')
                 if post_text:
-                    # Take first 100 characters of post
-                    recent_post_topic = post_text[:100].replace('\n', ' ')
+                    # Take first 50 characters max
+                    recent_post_topic = post_text[:50].replace('\n', ' ').strip()
         
         # 3. EXTRACT SENDER INFO
         sender_name = sender_info.get('name', 'Professional')
         sender_first_name = sender_name.split()[0] if sender_name else "Professional"
         sender_role_desc = sender_info.get('role_desc', '')
         
-        # 4. BUILD PROMPT WITH ROLE DEPTH
+        # 4. CONCISE PROMPT FOR SHORT MESSAGES
         system_prompt = f'''You are an expert LinkedIn message writer. Generate 3 different connection requests.
 
-RULES:
-1. Each message MUST be 250-300 characters
-2. Format exactly: Hi [Name], [hook], [value alignment], [connection request]
-3. Hook: Build depth on their role - don't just name it, show understanding of what it entails
-4. Second line MUST include: "As someone who [sender_role_desc],"
-5. Connection request should be specific - mention exchanging ideas/notes, not just "connect"
-6. Sound professional but human, like a peer conversation
-7. If they have recent post, reference it naturally
-8. Avoid generic flattery, be specific
+CRITICAL RULES:
+1. Each message MUST be 250-300 characters TOTAL
+2. Keep role explanation to 20 words MAX in the hook
+3. Structure: Hi [Name], [concise hook], [connection request]
+4. INCLUDE in EVERY message: "As someone who {sender_role_desc},"
+5. Be direct, no lengthy explanations
+6. If mentioning a post, keep it brief (1 sentence)
+7. Role depth means: Show you understand their work, but don't over-explain
 
-PROSPECT DETAILS:
+EXAMPLE OF GOOD STRUCTURE (under 300 chars):
+"Hi Sarah, Your approach to product strategy shows clear customer focus. As someone who helps tech teams scale products, I'd appreciate connecting to exchange quick thoughts."
+
+BAD (too long):
+"Hi Sarah, Crafting customer-centric banking experiences through tailored product offerings seems like a fascinating challenge. As someone who helps banks..."
+
+PROSPECT INFO:
 Name: {prospect_name}
-Role: {prospect_role}
-Company: {prospect_company}
-Headline: {prospect_headline}
-Expertise: {prospect_expertise}
-Recent Post: {recent_post_topic}
+Role: {prospect_role or 'Professional'}
+Recent Post: {recent_post_topic or 'No recent post mentioned'}
 
 YOUR CONTEXT:
 Name: {sender_first_name}
 About You: {sender_role_desc}
 
-BUILD DEPTH ON THEIR ROLE EXAMPLES:
-- Don't say: "I see you're a Product Manager"
-- Do say: "Your work as a Product Manager, especially in translating user needs into roadmap priorities..."
+Generate 3 different 250-300 character messages. Each must be concise and follow the structure.'''
 
-SAMPLE STRUCTURE:
-Hi [Name], [Role-specific hook showing depth]. As someone who [your_role_desc], [specific value alignment]. [Specific connection request - e.g., "Would be great to exchange notes on..."].
-
-Generate 3 different options with these rules.'''
-
-        # 5. USER PROMPT FOR REFINEMENT OR NEW
+        # 5. USER PROMPT
         if user_instructions and previous_message:
-            user_prompt = f'''Refine this message based on: {user_instructions}
+            user_prompt = f'''Make this message shorter and more concise: {previous_message[:150]}
 
-Current message: {previous_message[:200]}
+Instructions: {user_instructions}
 
-Generate 3 refined versions with the same rules.'''
+Generate 3 shorter versions (250-300 chars each).'''
         else:
-            user_prompt = '''Generate 3 connection messages following all rules above.'''
+            user_prompt = '''Generate 3 concise connection messages following all rules above.'''
         
         # 6. API CALL
         headers = {
@@ -387,7 +365,7 @@ Generate 3 refined versions with the same rules.'''
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.7,
-            "max_tokens": 1200,
+            "max_tokens": 800,  # Reduced for shorter messages
             "stream": False
         }
         
@@ -400,44 +378,76 @@ Generate 3 refined versions with the same rules.'''
         
         if response.status_code == 200:
             content = response.json()["choices"][0]["message"]["content"]
-            messages = []
             
-            # Parse options
-            lines = content.split('\n')
-            current_option = []
-            option_number = 1
+            # Parse and format messages
+            messages = []
+            lines = content.strip().split('\n')
             
             for line in lines:
-                if line.strip().lower().startswith('option'):
-                    if current_option:
-                        messages.append(' '.join(current_option))
-                        current_option = []
-                elif line.strip() and not line.strip().startswith('**'):
-                    current_option.append(line.strip())
+                line = line.strip()
+                if line.startswith('Option') or line.startswith('Message') or line.startswith('Version'):
+                    continue
+                if line and len(line) > 50 and line[0].isalpha():  # Looks like message text
+                    # Format it
+                    if not line.startswith(f"Hi {prospect_name}"):
+                        line = f"Hi {prospect_name},\n{line}"
+                    if not line.strip().endswith(f"Best,\n{sender_first_name}"):
+                        line = f"{line}\nBest,\n{sender_first_name}"
+                    
+                    # Truncate if too long (shouldn't be with our prompt)
+                    if len(line) > 350:
+                        line = line[:340] + "\nBest,\n" + sender_first_name
+                    
+                    messages.append(line)
             
-            if current_option:
-                messages.append(' '.join(current_option))
-            
-            # Format messages
-            formatted_messages = []
-            for msg in messages[:3]:
-                if msg:
-                    # Ensure proper formatting
-                    if not msg.startswith(f"Hi {prospect_name}"):
-                        msg = f"Hi {prospect_name},\n{msg}"
-                    if not msg.strip().endswith(f"Best,\n{sender_first_name}"):
-                        msg = f"{msg}\nBest,\n{sender_first_name}"
-                    formatted_messages.append(msg)
-            
-            if formatted_messages:
-                return formatted_messages
+            # Ensure we have exactly 3 messages
+            if len(messages) >= 3:
+                return messages[:3]
+            elif messages:
+                # Create variations if needed
+                return messages + generate_concise_fallback(prospect_name, sender_first_name, sender_role_desc, prospect_role)[:3-len(messages)]
+            else:
+                # Fallback
+                return generate_concise_fallback(prospect_name, sender_first_name, sender_role_desc, prospect_role)
         
         # Fallback messages
-        return generate_fallback_messages(prospect_name, sender_first_name, sender_role_desc, prospect_role)
+        return generate_concise_fallback(prospect_name, sender_first_name, sender_role_desc, prospect_role)
         
     except Exception as e:
-        return generate_fallback_messages("there", "Professional", sender_info.get('role_desc', ''), "their role")
+        return generate_concise_fallback("there", "Professional", sender_info.get('role_desc', ''), "their role")
 
+def generate_concise_fallback(prospect_name: str, sender_first_name: str, 
+                            sender_role_desc: str, prospect_role: str) -> list:
+    """Generate concise fallback messages (250-300 chars each)."""
+    
+    # Template messages within character limit
+    templates = [
+        f"Hi {prospect_name},\nYour work in {prospect_role or 'your field'} shows strong customer focus. As someone who {sender_role_desc or 'works in a related area'}, I'd appreciate connecting to exchange quick thoughts.\nBest,\n{sender_first_name}",
+        
+        f"Hi {prospect_name},\nYour approach to {prospect_role or 'professional work'} aligns with current industry shifts. As someone who {sender_role_desc or 'focuses on similar challenges'}, connecting would be valuable for sharing perspectives.\nBest,\n{sender_first_name}",
+        
+        f"Hi {prospect_name},\nThe strategy behind your {prospect_role or 'role'} shows clear direction. As someone who {sender_role_desc or 'helps in this space'}, I'd like to connect and exchange brief notes.\nBest,\n{sender_first_name}"
+    ]
+    
+    # Ensure each is under 300 chars
+    final_messages = []
+    for msg in templates:
+        if len(msg) > 300:
+            # Truncate carefully
+            lines = msg.split('\n')
+            if len(lines) >= 3:
+                # Keep first two lines, truncate third
+                truncated = f"{lines[0]}\n{lines[1]}\n{lines[2][:100]}..."
+                if len(truncated) > 300:
+                    truncated = truncated[:290] + "\nBest,\n" + sender_first_name
+                final_messages.append(truncated)
+            else:
+                final_messages.append(msg[:300])
+        else:
+            final_messages.append(msg)
+    
+    return final_messages[:3]
+                                
 def generate_fallback_messages(prospect_name: str, sender_first_name: str, 
                              sender_role_desc: str, prospect_role: str) -> list:
     """Generate fallback messages with role depth."""
