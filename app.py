@@ -538,7 +538,77 @@ modern_css = """
         font-family: 'Space Grotesk', sans-serif;
         min-height: 100vh;
     }
-    
+    .message-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
+    padding: 25px;
+    border: 1px solid rgba(0, 180, 216, 0.1);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.message-card:hover {
+    border-color: rgba(0, 180, 216, 0.3);
+    transform: translateY(-5px);
+}
+
+.message-card.selected {
+    border-color: #00b4d8;
+    box-shadow: 0 0 30px rgba(0, 180, 216, 0.2);
+}
+
+.message-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.message-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+}
+
+.btn-copy {
+    background: rgba(0, 180, 216, 0.1);
+    border: 1px solid rgba(0, 180, 216, 0.3);
+    color: #00b4d8;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.btn-copy:hover {
+    background: rgba(0, 180, 216, 0.2);
+    border-color: #00b4d8;
+}
+
+.btn-select {
+    background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.btn-select:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 180, 216, 0.3);
+}
+
     .main-container {
         background: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
         backdrop-filter: blur(20px);
@@ -915,186 +985,229 @@ if st.session_state.profile_data and st.session_state.research_brief and st.sess
     
     with tab1:
         st.markdown('<h3 style="color: #e6f7ff; margin-bottom: 25px;">Generate Message</h3>', unsafe_allow_html=True)
-        
-        col_gen1, col_gen2 = st.columns([2, 1])
-        
-        with col_gen1:
-            if st.button("Generate AI Messages", use_container_width=True, key="generate_message"):
-                with st.spinner("Creating personalized messages with role depth..."):
-                    messages = analyze_and_generate_message(
-                        st.session_state.profile_data,
-                        st.session_state.sender_info,
-                        groq_api_key
-                    )
-                    
-                    if messages:
-                        st.session_state.generated_messages = []
-                        for i, msg in enumerate(messages):
-                            st.session_state.generated_messages.append({
-                                "text": msg,
-                                "char_count": len(msg),
-                                "option": i + 1
-                            })
-                        st.session_state.current_message_index = 0
-                        st.rerun()
-            
-        with col_gen2:
-            if len(st.session_state.generated_messages) > 0:
-                if st.button(
-                    "Refine Message", 
-                    use_container_width=True,
-                    key="refine_message"
-                ):
-                    st.session_state.regenerate_mode = True
+
+        # Generation button
+        if st.button("Generate AI Messages", use_container_width=True, key="generate_message"):
+            with st.spinner("Creating personalized messages..."):
+                messages = analyze_and_generate_message(
+                    st.session_state.profile_data,
+                    st.session_state.sender_info,
+                    groq_api_key
+                )
+
+                if messages:
+                    st.session_state.generated_messages = []
+                    for i, msg in enumerate(messages):
+                        st.session_state.generated_messages.append({
+                            "text": msg,
+                            "char_count": len(msg),
+                            "option": i + 1
+                        })
                     st.rerun()
-        
-        # Display current message
+
+        # Display all generated messages in separate columns
         if len(st.session_state.generated_messages) > 0:
-            current_msg_data = st.session_state.generated_messages[st.session_state.current_message_index]
-            current_msg = current_msg_data["text"]
-            char_count = current_msg_data["char_count"]
-            
-            st.markdown(f'''
-            <div class="message-structure">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
-                    <div>
-                        <h4 style="color: #e6f7ff; margin: 0;">Option {current_msg_data['option']}</h4>
-                        <p style="color: #8892b0; font-size: 0.9rem; margin: 5px 0 0 0;">
-                            {char_count} characters
-                        </p>
+            st.markdown("---")
+            st.markdown('<h4 style="color: #e6f7ff; margin-bottom: 20px;">Generated Message Options</h4>', unsafe_allow_html=True)
+
+            # Create 3 columns for the 3 messages
+            col1, col2, col3 = st.columns(3, gap="large")
+
+            columns = [col1, col2, col3]
+
+            for i, msg_data in enumerate(st.session_state.generated_messages[:3]):  # Only show first 3
+                with columns[i]:
+                    msg_text = msg_data["text"]
+                    char_count = msg_data["char_count"]
+
+                    # Message card
+                    st.markdown(f'''
+                    <div class="card-3d" style="height: 420px; display: flex; flex-direction: column;">
+                        <div style="margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h4 style="color: #00ffd0; margin: 0;">Option {msg_data['option']}</h4>
+                                <span style="color: #8892b0; font-size: 0.85rem;">
+                                    {char_count} chars
+                                </span>
+                            </div>
+                        </div>
+
+                        <div style="flex-grow: 1; overflow-y: auto; margin-bottom: 20px;">
+                            <pre style="white-space: pre-wrap; font-family: 'Inter', sans-serif; line-height: 1.6; margin: 0; color: #e6f7ff; font-size: 0.95rem; word-wrap: break-word;">
+{msg_text}
+                            </pre>
+                        </div>
+
+                        <div style="margin-top: auto;">
+                            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                                <button onclick="navigator.clipboard.writeText(`{msg_text.replace('`', '\\`')}`)" style="background: rgba(0, 180, 216, 0.1); border: 1px solid rgba(0, 180, 216, 0.3); color: #00b4d8; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; width: 100%;">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            <div style="text-align: center;">
+                                <button onclick="selectMessage({i})" style="background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; width: 100%;">
+                                    Select & Refine
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div style="background: linear-gradient(135deg, rgba(0, 180, 216, 0.1), rgba(0, 255, 208, 0.1)); padding: 8px 16px; border-radius: 12px;">
-                        <span style="color: #00ffd0; font-weight: 600;">{char_count}/300 characters</span>
-                    </div>
-                </div>
-                <div style="background: rgba(255, 255, 255, 0.03); padding: 25px; border-radius: 16px; border: 1px solid rgba(0, 180, 216, 0.1); margin: 20px 0;">
-                    <pre style="white-space: pre-wrap; font-family: 'Inter', sans-serif; line-height: 1.8; margin: 0; color: #e6f7ff; font-size: 1.05rem; word-wrap: break-word; overflow-wrap: break-word;">
-{current_msg}
-                    </pre>
-                </div>
-            </div>
+                    ''', unsafe_allow_html=True)
+
+            # Add JavaScript for copy and select functionality
+            st.markdown('''
+            <script>
+            function copyToClipboard(text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('Message copied to clipboard!');
+                });
+            }
+
+            function selectMessage(index) {
+                // This would trigger a Streamlit rerun with the selected message index
+                // In a real implementation, you'd use Streamlit's JS to Python bridge
+                alert('Selected message ' + (index + 1) + ' for refinement');
+            }
+            </script>
             ''', unsafe_allow_html=True)
-            
-            col_copy, col_prev, col_next, col_count = st.columns([2, 1, 1, 1])
-            
-            with col_copy:
-                st.code(current_msg, language=None)
-            
-            with col_prev:
-                if st.button("Previous", use_container_width=True, disabled=st.session_state.current_message_index <= 0):
-                    st.session_state.current_message_index -= 1
-                    st.session_state.regenerate_mode = False
-                    st.rerun()
-            
-            with col_next:
-                if st.button("Next", use_container_width=True, disabled=st.session_state.current_message_index >= len(st.session_state.generated_messages) - 1):
-                    st.session_state.current_message_index += 1
-                    st.session_state.regenerate_mode = False
-                    st.rerun()
-            
-            with col_count:
-                st.markdown(f'<p style="color: #e6f7ff; text-align: center; font-weight: 600;">{st.session_state.current_message_index + 1}/{len(st.session_state.generated_messages)}</p>', unsafe_allow_html=True)
-            
-            # Refinement Mode
-            if st.session_state.regenerate_mode:
-                st.markdown("---")
-                st.markdown('<h4 style="color: #e6f7ff;">Refine Message</h4>', unsafe_allow_html=True)
-                
+
+            # Refinement section
+            st.markdown("---")
+            st.markdown('<h4 style="color: #e6f7ff; margin-bottom: 20px;">Refine Selected Message</h4>', unsafe_allow_html=True)
+
+            # Message selection dropdown
+            message_options = [f"Option {i+1}: {msg['text'][:80]}..." for i, msg in enumerate(st.session_state.generated_messages)]
+
+            col_ref1, col_ref2 = st.columns([3, 1])
+
+            with col_ref1:
+                selected_option = st.selectbox(
+                    "Select a message to refine:",
+                    options=range(len(st.session_state.generated_messages)),
+                    format_func=lambda x: message_options[x],
+                    key="selected_message_refine"
+                )
+
+            with col_ref2:
+                refine_clicked = st.button("Refine This Message", use_container_width=True, key="refine_trigger")
+
+            # Refinement form
+            if refine_clicked or st.session_state.get('refine_mode', False):
+                st.session_state.refine_mode = True
+
+                selected_msg = st.session_state.generated_messages[selected_option]
+
                 with st.form("refinement_form"):
                     instructions = st.text_area(
-                        "How would you like to improve this message?",
-                        value=st.session_state.message_instructions,
-                        placeholder="Example: Make more technical, Focus on AI experience, Make it shorter",
-                        height=100
+                        "How would you like to refine this message?",
+                        value=st.session_state.get('refine_instructions', ''),
+                        placeholder="Example: Make it more technical, focus on AI experience, make it shorter...",
+                        height=100,
+                        key="refine_instructions_input"
                     )
-                    
-                    col_ref1, col_ref2 = st.columns([2, 1])
-                    
-                    with col_ref1:
-                        refine_submit = st.form_submit_button(
+
+                    col_submit, col_cancel = st.columns([1, 1])
+
+                    with col_submit:
+                        submit_refine = st.form_submit_button(
                             "Generate Refined Version",
                             use_container_width=True
                         )
-                    
-                    with col_ref2:
+
+                    with col_cancel:
                         cancel_refine = st.form_submit_button(
                             "Cancel",
                             use_container_width=True
                         )
-                    
-                    if refine_submit and instructions:
+
+                    if submit_refine and instructions:
                         with st.spinner("Refining message..."):
                             refined_options = analyze_and_generate_message(
                                 st.session_state.profile_data,
                                 st.session_state.sender_info,
                                 groq_api_key,
                                 instructions,
-                                current_msg
+                                selected_msg["text"]
                             )
-                            
+
                             if refined_options:
+                                # Add the refined message to the list
                                 new_msg = refined_options[0]
                                 st.session_state.generated_messages.append({
                                     "text": new_msg,
                                     "char_count": len(new_msg),
                                     "option": len(st.session_state.generated_messages) + 1,
-                                    "refinement_used": instructions
+                                    "refined_from": selected_option + 1
                                 })
-                                st.session_state.current_message_index = len(st.session_state.generated_messages) - 1
-                                st.session_state.regenerate_mode = False
+                                st.session_state.refine_mode = False
+                                st.success("Message refined successfully!")
                                 st.rerun()
-                    
+
                     if cancel_refine:
-                        st.session_state.regenerate_mode = False
+                        st.session_state.refine_mode = False
                         st.rerun()
-            
-            # Message History
-            if len(st.session_state.generated_messages) > 1:
-                st.markdown("---")
-                st.markdown('<h4 style="color: #e6f7ff; margin-bottom: 20px;">Message History</h4>', unsafe_allow_html=True)
-                
-                for idx, msg_obj in enumerate(st.session_state.generated_messages):
-                    is_active = (idx == st.session_state.current_message_index)
-                    
-                    if isinstance(msg_obj, dict):
-                        full_text = msg_obj.get("text", "")
-                        refinement = msg_obj.get("refinement_used", "")
-                    else:
-                        full_text = str(msg_obj)
-                        refinement = ""
-                    
-                    # Clean preview text
-                    text_preview = full_text.replace('\n', ' ').strip()
-                    text_preview = text_preview[:60] + "..." if len(text_preview) > 60 else text_preview
-                    
-                    # Create button for each version
-                    if st.button(
-                        f"Version {idx + 1}: {text_preview}", 
-                        key=f"hist_btn_{idx}", 
-                        use_container_width=True,
-                        help="Click to view this version"
-                    ):
-                        st.session_state.current_message_index = idx
-                        st.session_state.regenerate_mode = False
-                        st.rerun()
-                    
-                    # Active indicator
-                    if is_active:
-                        st.markdown(
-                            f'<div style="margin-top: -15px; margin-bottom: 10px; padding: 5px 15px; background: #00b4d8; border-radius: 0 0 10px 10px; font-size: 0.7rem; color: white; font-weight: bold; text-align: center;">CURRENTLY VIEWING</div>', 
-                            unsafe_allow_html=True
-                        )
-        
+
+            # Message history accordion
+            if len(st.session_state.generated_messages) > 3:
+                with st.expander("Message History (All Versions)", expanded=False):
+                    for idx, msg_obj in enumerate(st.session_state.generated_messages):
+                        if isinstance(msg_obj, dict):
+                            text = msg_obj.get("text", "")
+                            refined_from = msg_obj.get("refined_from", "")
+
+                            # Clean preview
+                            preview = text.replace('\n', ' ').strip()[:100] + "..." if len(text) > 100 else text
+
+                            col_hist1, col_hist2, col_hist3 = st.columns([3, 1, 1])
+
+                            with col_hist1:
+                                st.markdown(f"**Version {idx + 1}**" + (f" (Refined from Option {refined_from})" if refined_from else ""))
+                                st.markdown(f'<span style="color: #8892b0; font-size: 0.9rem;">{preview}</span>', unsafe_allow_html=True)
+
+                            with col_hist2:
+                                if st.button("View", key=f"view_hist_{idx}", use_container_width=True):
+                                    # You could implement a detailed view here
+                                    st.code(text, language=None)
+
+                            with col_hist3:
+                                if st.button("Use", key=f"use_hist_{idx}", use_container_width=True):
+                                    st.info(f"Message {idx + 1} selected for use")
+
+                            st.markdown("---")
+
         else:
+            # Empty state when no messages generated
             st.markdown('''
             <div class="card-3d" style="text-align: center; padding: 60px 30px;">
-                <h4 style="color: #e6f7ff; margin-bottom: 15px;">Generate Your First Message</h4>
-                <p style="color: #8892b0; max-width: 400px; margin: 0 auto;">
-                    Click Generate AI Message to create personalized messages that build depth on their role and include your expertise.
+                <div style="font-size: 4rem; margin-bottom: 20px; color: #00b4d8;">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h4 style="color: #e6f7ff; margin-bottom: 15px;">Generate Your First Messages</h4>
+                <p style="color: #8892b0; max-width: 500px; margin: 0 auto 30px;">
+                    Click the button above to generate 3 personalized LinkedIn message options. Each message will be displayed separately for easy comparison.
                 </p>
+                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 40px;">
+                    <div style="text-align: center;">
+                        <div style="width: 60px; height: 60px; background: rgba(0, 180, 216, 0.1); border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+                            <span style="color: #00b4d8; font-size: 1.5rem;">1</span>
+                        </div>
+                        <span style="color: #8892b0; font-size: 0.9rem;">Generate 3 Options</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="width: 60px; height: 60px; background: rgba(0, 180, 216, 0.1); border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+                            <span style="color: #00b4d8; font-size: 1.5rem;">2</span>
+                        </div>
+                        <span style="color: #8892b0; font-size: 0.9rem;">Compare & Select</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="width: 60px; height: 60px; background: rgba(0, 180, 216, 0.1); border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+                            <span style="color: #00b4d8; font-size: 1.5rem;">3</span>
+                        </div>
+                        <span style="color: #8892b0; font-size: 0.9rem;">Refine & Copy</span>
+                    </div>
+                </div>
             </div>
             ''', unsafe_allow_html=True)
-    
+        
     with tab2:
         st.markdown('<h3 style="color: #e6f7ff; margin-bottom: 25px;">Research Brief</h3>', unsafe_allow_html=True)
         st.markdown('<div class="card-3d">', unsafe_allow_html=True)
